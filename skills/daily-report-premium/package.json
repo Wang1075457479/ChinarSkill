@@ -5,12 +5,15 @@
   "main": "scripts/generator.js",
   "scripts": {
     "generate": "node scripts/generator.js",
-    "test": "echo 'Run: node scripts/generator.js'"
+    "send": "node scripts/feishu-sender.js",
+    "test": "echo 'Run: npm install && node scripts/generator.js'"
   },
   "keywords": ["daily-report", "feishu", "video", "automation"],
   "author": "KimiClaw",
   "license": "MIT",
   "dependencies": {
-    "playwright": "^1.40.0"
+    "playwright": "^1.40.0",
+    "axios": "^1.6.0",
+    "form-data": "^4.0.0"
   }
 }
