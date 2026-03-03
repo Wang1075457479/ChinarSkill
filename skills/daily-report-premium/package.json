@@ -1,0 +1,16 @@
+{
+  "name": "daily-report-premium",
+  "version": "1.0.0",
+  "description": "极简高级美学日报生成器 - Premium Daily Report Generator",
+  "main": "scripts/generator.js",
+  "scripts": {
+    "generate": "node scripts/generator.js",
+    "test": "echo 'Run: node scripts/generator.js'"
+  },
+  "keywords": ["daily-report", "feishu", "video", "automation"],
+  "author": "KimiClaw",
+  "license": "MIT",
+  "dependencies": {
+    "playwright": "^1.40.0"
+  }
+}
