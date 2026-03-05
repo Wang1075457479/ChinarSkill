@@ -1,0 +1,11 @@
+{
+  "title": "【任务标题】",
+  "description": "任务描述",
+  "checklist": [
+    "1、第一步",
+    "2、第二步",
+    "3、第三步"
+  ],
+  "assignee": "被分配人姓名（可选）",
+  "attachments": []
+}
