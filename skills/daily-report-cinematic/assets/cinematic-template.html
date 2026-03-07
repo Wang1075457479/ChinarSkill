@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, initial-scale=1.0">
+    <title>KIMICLAW - Ultra Premium Cinematic Edition (Pure CSS Render)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #030305; --accent: #E2FF54; --accent-glow: rgba(226, 255, 84, 0.4); --idle: #4ADE80;
+            --glass-bg: rgba(255, 255, 255, 0.02); --glass-border: rgba(255, 255, 255, 0.05); --glass-highlight: rgba(255, 255, 255, 0.1);
+            --panel-radius: 48px;
+        }
+
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-color); color: #ffffff; margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; position: relative; }
+        body::before { content: ""; position: absolute; inset: 0; background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)" opacity="0.04"/%3E%3C/svg%3E'); pointer-events: none; z-index: 1; }
+        
+        .ambient-orb { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.15; animation: orbFloat 20s infinite alternate ease-in-out; pointer-events: none; z-index: 0; will-change: transform; transform: translateZ(0); }
+        .orb-1 { width: 1000px; height: 1000px; background: var(--accent); top: -200px; left: -200px; }
+        .orb-2 { width: 800px; height: 800px; background: #8a2be2; bottom: -200px; right: 0px; animation-delay: -5s; }
+        @keyframes orbFloat { 0% { transform: translate3d(0, 0, 0) scale(0.9); } 100% { transform: translate3d(100px, 80px, 0) scale(1.1); } }
+        
+        #capture-area { width: 1920px; height: 1080px; padding: 60px 80px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px; position: absolute; top: 0; left: 0; z-index: 10; }
+        
+        /* 纯 CSS 驱动的 9 秒全局进度条 */
+        .global-progress { position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: rgba(255,255,255,0.05); }
+        .global-progress-bar { height: 100%; width: 0; background: var(--accent); animation: globalFill 9s linear infinite; box-shadow: 0 0 20px var(--accent-glow); will-change: width; }
+        @keyframes globalFill { 0% { width: 0%; } 100% { width: 100%; } }
+
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(60px); -webkit-backdrop-filter: blur(60px); border: 1px solid var(--glass-border); border-top: 2px solid var(--glass-highlight); border-radius: var(--panel-radius); box-shadow: 0 40px 80px rgba(0,0,0,0.6), inset 0 0 30px rgba(255,255,255,0.02); position: relative; }
+        
+        .stage-container { position: relative; width: 100%; height: 100%; border-radius: var(--panel-radius); overflow: hidden; display: block; }
+        
+        /* 核心重构：100% 纯 CSS 硬件加速轮播，彻底屏蔽 JS 延迟卡顿 */
+        .stage-slide { 
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
+            width: 100%; height: 100%; opacity: 0; 
+            transform: scale(0.95) translateZ(0); 
+            filter: blur(20px); 
+            pointer-events: none; display: flex; flex-direction: column; padding: 60px; box-sizing: border-box; 
+            will-change: transform, opacity, filter;
+        }
+
+        /* 每一页精准卡点 9 秒循环 (3秒显示，6秒隐藏) */
+        #slide-0 { animation: slide0 9s infinite cubic-bezier(0.19, 1, 0.22, 1); }
+        @keyframes slide0 {
+            0%, 30% { opacity: 1; transform: scale(1) translateZ(0); filter: blur(0); pointer-events: auto; }
+            35%, 95% { opacity: 0; transform: scale(1.05) translateZ(0); filter: blur(10px); pointer-events: none; }
+            100% { opacity: 1; transform: scale(1) translateZ(0); filter: blur(0); pointer-events: auto; }
+        }
+
+        #slide-1 { animation: slide1 9s infinite cubic-bezier(0.19, 1, 0.22, 1); }
+        @keyframes slide1 {
+            0%, 28% { opacity: 0; transform: scale(0.95) translateZ(0); filter: blur(20px); pointer-events: none; }
+            33%, 63% { opacity: 1; transform: scale(1) translateZ(0); filter: blur(0); pointer-events: auto; }
+            68%, 100% { opacity: 0; transform: scale(1.05) translateZ(0); filter: blur(10px); pointer-events: none; }
+        }
+
+        #slide-2 { animation: slide2 9s infinite cubic-bezier(0.19, 1, 0.22, 1); }
+        @keyframes slide2 {
+            0%, 61% { opacity: 0; transform: scale(0.95) translateZ(0); filter: blur(20px); pointer-events: none; }
+            66%, 96% { opacity: 1; transform: scale(1) translateZ(0); filter: blur(0); pointer-events: auto; }
+            100% { opacity: 0; transform: scale(1.05) translateZ(0); filter: blur(10px); pointer-events: none; }
+        }
+        
+        /* 纯 CSS 故事线指示器 */
+        .story-indicators { position: absolute; top: 30px; left: 60px; right: 60px; display: flex; gap: 12px; z-index: 20; }
+        .story-dash { flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+        .story-fill { height: 100%; width: 0; background: var(--accent); will-change: width; }
+        #story-fill-0 { animation: fill0 9s infinite linear; }
+        @keyframes fill0 { 0% { width: 0%; } 33.33%, 100% { width: 100%; } }
+        #story-fill-1 { animation: fill1 9s infinite linear; }
+        @keyframes fill1 { 0%, 33.33% { width: 0%; } 66.66%, 100% { width: 100%; } }
+        #story-fill-2 { animation: fill2 9s infinite linear; }
+        @keyframes fill2 { 0%, 66.66% { width: 0%; } 100% { width: 100%; } }
+
+        .giant-synopsis { font-size: 64px; font-weight: 700; line-height: 1.15; letter-spacing: -1px; }
+        .giant-metric { font-size: 180px; font-weight: 700; line-height: 1; letter-spacing: -4px; }
+        
+        .task-list-huge { display: flex; flex-direction: column; gap: 32px; width: 100%; }
+        .task-card-huge { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 40px; border-radius: 32px; display: flex; gap: 32px; align-items: flex-start; width: 100%; box-sizing: border-box; min-width: 0; }
+        .task-icon-huge { width: 64px; height: 64px; border-radius: 20px; border: 2px solid var(--accent); display: flex; align-items: center; justify-content: center; background: rgba(226, 255, 84, 0.1); flex-shrink: 0; }
+        
+        .ticker-wrap { width: 100%; overflow: hidden; white-space: nowrap; mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); transform: translateZ(0); }
+        .ticker-content { display: inline-block; animation: ticker 20s linear infinite; will-change: transform; transform: translateZ(0); }
+        @keyframes ticker { 0% { transform: translate3d(0,0,0); } 100% { transform: translate3d(-50%,0,0); } }
+        
+        .ken-burns { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; animation: kenBurns 20s ease-out infinite alternate; border-radius: var(--panel-radius); z-index: 1; will-change: transform; transform: translateZ(0); }
+        @keyframes kenBurns { 0% { transform: scale(1) translateZ(0); } 100% { transform: scale(1.15) translateZ(0); } }
+        
+        .font-display { font-family: 'Space Grotesk', sans-serif; } .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+
+    <div id="capture-area">
+        <div class="global-progress"><div class="global-progress-bar"></div></div>
+        
+        <div class="glass-panel flex justify-between items-center shrink-0 w-full box-border" style="padding: 30px 60px; height: 140px; border-radius: 100px;">
+            <div class="flex items-center gap-8">
+                <img src="https://api.dicebear.com/7.x/notionists/svg?seed=kimiclaw&backgroundColor=e2ff54" alt="Avatar" class="w-20 h-20 rounded-full bg-[var(--accent)] border-4 border-[var(--accent)] shadow-[0_0_30px_var(--accent-glow)] flex-shrink-0">
+                <div>
+                    <h1 class="text-3xl font-bold tracking-widest font-display uppercase leading-tight">KimiClaw <span class="text-[var(--accent)]">Intelligence</span></h1>
+                    <p class="text-lg text-gray-500 font-mono mt-1 tracking-wider" id="date-display"></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-10">
+                <div class="flex items-center gap-4">
+                    <div class="w-4 h-4 rounded-full bg-red-500 animate-pulse shadow-[0_0_15px_red] flex-shrink-0"></div>
+                    <span class="text-xl text-red-500 font-mono tracking-widest font-bold uppercase">REC</span>
+                </div>
+                <div class="px-8 py-3 rounded-full text-xl font-mono font-bold border border-[var(--accent-glow)] bg-[var(--accent)]/10 text-[var(--accent)] tracking-wider" id="status-badge"></div>
+            </div>
+        </div>
+
+        <div class="flex-1 grid gap-[40px] min-h-0 w-full" style="grid-template-columns: 4fr 6fr;">
+            <div class="glass-panel flex flex-col justify-center h-full w-full min-w-0 box-border" style="padding: 60px;">
+                <div class="mb-auto">
+                    <h2 class="text-xl text-gray-500 font-bold uppercase tracking-widest mb-8 font-mono">Today's Synopsis</h2>
+                    <div class="font-display giant-synopsis text-white" id="typewriter-text"></div>
+                </div>
+                <div class="ticker-wrap mt-12 bg-white/5 py-4 px-6 rounded-2xl border border-white/5 w-full box-border">
+                    <div class="ticker-content font-mono text-xl text-[var(--accent)] tracking-widest flex gap-12" id="ticker-track"></div>
+                </div>
+            </div>
+
+            <div class="glass-panel stage-container p-0 h-full w-full min-w-0">
+                <div class="story-indicators">
+                    <div class="story-dash"><div class="story-fill" id="story-fill-0"></div></div>
+                    <div class="story-dash"><div class="story-fill" id="story-fill-1"></div></div>
+                    <div class="story-dash"><div class="story-fill" id="story-fill-2"></div></div>
+                </div>
+
+                <div class="stage-slide" id="slide-0" style="padding: 0;">
+                    <img src="DOG_IMAGE_URL" alt="Dog" class="ken-burns">
+                    <div class="absolute bottom-0 left-0 w-full p-12 bg-gradient-to-t from-black/90 via-black/50 to-transparent z-10 box-border">
+                        <div class="w-fit px-5 py-2 rounded-xl text-lg font-mono text-[var(--accent)] uppercase mb-6 border border-white/20 bg-black/60 backdrop-blur-md">Biometric Emotion</div>
+                        <p class="text-white text-[42px] font-medium leading-normal italic drop-shadow-2xl whitespace-normal break-words" id="emotion-quote"></p>
+                    </div>
+                </div>
+
+                <div class="stage-slide" id="slide-1">
+                    <div class="flex justify-between items-center mb-10 pb-8 border-b border-white/10 shrink-0 mt-10">
+                        <h3 class="text-3xl text-gray-400 font-bold uppercase tracking-widest font-mono">Execution Flow</h3>
+                        <span class="text-xl font-mono bg-white/10 border border-white/10 px-6 py-2 rounded-xl text-white tracking-widest" id="task-count">0 TASKS</span>
+                    </div>
+                    <div class="flex-1 overflow-hidden relative w-full" style="mask-image: linear-gradient(to bottom, black 80%, transparent 100%);">
+                        <div id="tasks-list" class="task-list-huge"></div>
+                    </div>
+                </div>
+
+                <div class="stage-slide" id="slide-2">
+                    <div class="flex items-center gap-6 mb-auto mt-10">
+                        <h3 class="text-3xl text-gray-400 font-bold uppercase tracking-widest font-mono">System Metrics Core</h3>
+                        <div class="w-4 h-4 rounded-full bg-[var(--accent)] animate-pulse shadow-[0_0_20px_var(--accent-glow)]"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-20 mt-auto mb-20 w-full">
+                        <div class="flex flex-col justify-end min-w-0">
+                            <span class="text-2xl text-gray-500 mb-6 block uppercase tracking-widest font-mono" id="metric-1-label">Files</span>
+                            <div class="font-display giant-metric text-[var(--accent)]" id="metric-1-val"></div>
+                            <div class="w-full bg-white/10 h-3 mt-10 rounded-full overflow-hidden"><div id="metric-1-bar" class="h-full"></div></div>
+                        </div>
+                        <div class="flex flex-col justify-end min-w-0">
+                            <span class="text-2xl text-gray-500 mb-6 block uppercase tracking-widest font-mono" id="metric-2-label">Calls</span>
+                            <div class="font-display giant-metric text-white" id="metric-2-val"></div>
+                            <div class="w-full bg-white/10 h-3 mt-10 rounded-full overflow-hidden"><div id="metric-2-bar" class="h-full"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 数据注入点 - 纯静态渲染，无动画逻辑
+        const todayData = {
+            "date": "MARCH 02, 2026",
+            "summary": "System architecture optimized.<br><span class='text-[var(--accent)]'>10 new skill nodes</span> activated.",
+            "quote": "主人，今天一切顺利！系统跑得很稳，我也很乖哦，等你带我出去玩！",
+            "tags": ["SYNC COMPLETE", "ENV STABLE", "CPU: 12%"],
+            "tasks": [
+                { "title": "技能生态扩展", "desc": "10 项技能安装与配置完毕" },
+                { "title": "项目管理系统优化", "desc": "Trello 看板重构与整理" }
+            ],
+            "metrics": { 
+                "m1": { "label": "SKILLS ACTIVE", "val": 14, "max": 20 }, 
+                "m2": { "label": "SECURITY", "val": 100, "max": 100 } 
+            }
+        };
+
+        function renderData(data) {
+            document.getElementById('date-display').innerText = "DATELINK: " + data.date;
+            document.getElementById('typewriter-text').innerHTML = data.summary;
+            
+            const tickerTrack = document.getElementById('ticker-track');
+            if (data.tags.length > 0) {
+                const tagString = data.tags.join(" &nbsp;&nbsp;&nbsp;///&nbsp;&nbsp;&nbsp; ");
+                tickerTrack.innerHTML = `<span>${tagString}</span><span>${tagString}</span>`;
+                tickerTrack.parentElement.parentElement.style.opacity = '1';
+            } else { 
+                tickerTrack.parentElement.parentElement.style.opacity = '0'; 
+            }
+
+            document.getElementById('emotion-quote').innerText = data.quote;
+            const taskList = document.getElementById('tasks-list');
+            const taskCount = document.getElementById('task-count');
+            const statusBadge = document.getElementById('status-badge');
+            taskCount.innerText = `${data.tasks.length} TASKS`;
+
+            if (data.tasks.length === 0) {
+                statusBadge.className = "px-8 py-3 rounded-full text-xl font-mono font-bold border border-[#4ADE80]/30 bg-[#4ADE80]/10 text-[#4ADE80] tracking-wider";
+                statusBadge.innerText = "SYSTEM IDLE";
+                taskList.className = "w-full h-full flex flex-col items-center justify-center opacity-60";
+                taskList.innerHTML = `<div class="w-32 h-32 rounded-full border border-white/10 flex items-center justify-center mb-10"><div class="w-8 h-8 rounded-full bg-[#4ADE80] animate-pulse shadow-[0_0_40px_#4ADE80]"></div></div><p class="font-mono text-3xl tracking-widest text-gray-400">NO PENDING TASKS</p><p class="font-mono text-xl text-[#4ADE80] mt-6 tracking-widest">STANDBY MODE ACTIVE</p>`;
+            } else {
+                statusBadge.className = "px-8 py-3 rounded-full text-xl font-mono font-bold border border-[var(--accent-glow)] bg-[var(--accent)]/10 text-[var(--accent)] tracking-wider";
+                statusBadge.innerText = "SYSTEM ONLINE";
+                let html = '';
+                data.tasks.forEach(task => { 
+                    html += `<div class="task-card-huge"><div class="task-icon-huge"><div class="w-4 h-4 bg-[var(--accent)] rounded-full"></div></div><div class="overflow-hidden flex-1 min-w-0"><h4 class="text-[36px] font-bold text-white truncate leading-tight">${task.title}</h4><p class="text-[24px] text-gray-400 mt-3 truncate">${task.desc}</p></div></div>`; 
+                });
+                taskList.className = "task-list-huge";
+                if (data.tasks.length > 3) {
+                    taskList.innerHTML = html + html; 
+                } else {
+                    taskList.innerHTML = html;
+                }
+            }
+            
+            document.getElementById('metric-1-label').innerText = data.metrics.m1.label;
+            document.getElementById('metric-2-label').innerText = data.metrics.m2.label;
+            document.getElementById('metric-1-val').innerText = data.metrics.m1.val;
+            document.getElementById('metric-2-val').innerText = data.metrics.m2.val;
+            
+            // 设置进度条宽度（静态）
+            const m1 = data.metrics.m1;
+            const m2 = data.metrics.m2;
+            document.getElementById('metric-1-bar').style.width = m1.max === 0 ? "0%" : `${Math.min(100, (m1.val / m1.max) * 100)}%`;
+            document.getElementById('metric-1-bar').style.backgroundColor = m1.val === 0 ? '#4ADE80' : 'var(--accent)';
+            document.getElementById('metric-2-bar').style.width = m2.max === 0 ? "0%" : `${Math.min(100, (m2.val / m2.max) * 100)}%`;
+            document.getElementById('metric-2-bar').style.backgroundColor = 'white';
+        }
+
+        window.onload = () => {
+            renderData(todayData);
+        };
+    </script>
+</body>
+</html>
