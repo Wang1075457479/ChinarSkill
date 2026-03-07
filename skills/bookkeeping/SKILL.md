@@ -146,16 +146,16 @@ def classify(name, description):
 ## 飞书API配置
 
 ```python
-# 应用凭证
-APP_ID = "cli_a91c3a810038dcc2"
-APP_SECRET = "cjxCK7wfUHsiDb8uMLNbxbdHCKgZDqUb"
-APP_TOKEN = "BOPEbIt7taU8Pws593YcEnsrnBt"
+# 应用凭证 (请替换为你的凭证)
+APP_ID = "cli_xxxxxxxxxxxxxxxx"
+APP_SECRET = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+APP_TOKEN = "xxxxxxxxxxxxxxxxxxxxxxxx"
 
-# 表格ID
+# 表格ID (请替换为你的表格ID)
 TABLES = {
-    '人': 'tbl7dEzuHBVUoxTI',
-    '车': 'tblf4fTIxkuEslxj',
-    '家': 'tblHenR8pEA7hB3v'
+    '人': 'tblxxxxxxxxxxxxxxxx',
+    '车': 'tblxxxxxxxxxxxxxxxx',
+    '家': 'tblxxxxxxxxxxxxxxxx'
 }
 ```
 
