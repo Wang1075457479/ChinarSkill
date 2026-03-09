@@ -1,0 +1,298 @@
+{
+  "schema_version": "1.0.0",
+  "last_updated": "2026-03-08T01:00:00+08:00",
+  "skills": [
+    {
+      "id": "feishu",
+      "name": "飞书集成",
+      "category": "飞书集成",
+      "install": {
+        "type": "builtin",
+        "package": "openclaw-extra",
+        "command": null,
+        "auto_setup": true
+      },
+      "config": {
+        "env_vars": [
+          {
+            "name": "FEISHU_APP_ID",
+            "required": true,
+            "get_url": "https://open.feishu.cn/app",
+            "description": "飞书应用ID"
+          },
+          {
+            "name": "FEISHU_APP_SECRET",
+            "required": true,
+            "get_url": "https://open.feishu.cn/app",
+            "description": "飞书应用密钥"
+          }
+        ],
+        "files": []
+      },
+      "capabilities": ["feishu_doc", "feishu_drive", "feishu_wiki", "feishu_bitable"],
+      "dependencies": [],
+      "multi_device_sync": true
+    },
+    {
+      "id": "bookkeeping",
+      "name": "飞书账单管家",
+      "category": "飞书集成",
+      "install": {
+        "type": "manual",
+        "path": "~/.openclaw/skills/bookkeeping",
+        "command": "cp -r bookkeeping ~/.openclaw/skills/",
+        "auto_setup": false
+      },
+      "config": {
+        "env_vars": [
+          {
+            "name": "FEISHU_BITABLE_APP_TOKEN",
+            "required": true,
+            "get_url": "https://open.feishu.cn/app",
+            "description": "多维表应用token"
+          }
+        ],
+        "files": [
+          {
+            "path": "~/.openclaw/skills/bookkeeping/config.json",
+            "template": {
+              "tables": {
+                "person": "tbl7dEzuHBVUoxTI",
+                "car": "tblf4fTIxkuEslxj",
+                "home": "tblHenR8pEA7hB3v"
+              }
+            }
+          }
+        ]
+      },
+      "capabilities": ["bill_import", "auto_classify"],
+      "dependencies": ["feishu"],
+      "multi_device_sync": true
+    },
+    {
+      "id": "auto-heal",
+      "name": "Auto-Heal",
+      "category": "系统监控",
+      "install": {
+        "type": "script",
+        "path": "/root/.openclaw/auto-heal.sh",
+        "command": "bash /root/.openclaw/auto-heal.sh init",
+        "auto_setup": true
+      },
+      "config": {
+        "env_vars": [],
+        "files": [
+          {
+            "path": "/root/.config/systemd/user/openclaw-health.timer",
+            "systemd": true
+          }
+        ],
+        "systemd": {
+          "timer": "openclaw-health.timer",
+          "service": "openclaw-health.service"
+        }
+      },
+      "capabilities": ["health_check", "auto_restart"],
+      "dependencies": [],
+      "multi_device_sync": false
+    },
+    {
+      "id": "config-guard",
+      "name": "Config-Guard",
+      "category": "系统监控",
+      "install": {
+        "type": "script",
+        "path": "/root/.openclaw/config-guard.sh",
+        "command": "bash /root/.openclaw/config-guard.sh init",
+        "auto_setup": true
+      },
+      "config": {
+        "env_vars": [
+          {
+            "name": "CNB_TOKEN",
+            "required": true,
+            "get_url": "https://cnb.cool",
+            "description": "CNB备份仓库token"
+          }
+        ],
+        "files": [],
+        "cron": {
+          "schedule": "0 2 * * *",
+          "command": "/root/.openclaw/config-guard.sh backup"
+        }
+      },
+      "capabilities": ["config_backup", "auto_rollback"],
+      "dependencies": [],
+      "multi_device_sync": false
+    },
+    {
+      "id": "trello",
+      "name": "Trello",
+      "category": "工具集成",
+      "install": {
+        "type": "builtin",
+        "package": "openclaw-bundled",
+        "command": null,
+        "auto_setup": true
+      },
+      "config": {
+        "env_vars": [
+          {
+            "name": "TRELLO_API_KEY",
+            "required": true,
+            "get_url": "https://trello.com/app-key",
+            "description": "Trello API Key"
+          },
+          {
+            "name": "TRELLO_TOKEN",
+            "required": true,
+            "get_url": "https://trello.com/1/authorize?expiration=never&scope=read,write&response_type=token&name=OpenClaw",
+            "description": "Trello Token"
+          }
+        ],
+        "files": []
+      },
+      "capabilities": ["board_manage", "card_create", "list_update"],
+      "dependencies": [],
+      "multi_device_sync": true
+    },
+    {
+      "id": "nano-pdf",
+      "name": "Nano PDF",
+      "category": "工具集成",
+      "install": {
+        "type": "pip",
+        "package": "nano-pdf",
+        "command": "pip install nano-pdf",
+        "auto_setup": false
+      },
+      "config": {
+        "env_vars": [],
+        "files": [],
+        "python_version": ">=3.9"
+      },
+      "capabilities": ["pdf_edit", "pdf_merge", "pdf_split"],
+      "dependencies": [],
+      "multi_device_sync": false
+    },
+    {
+      "id": "persistent-memory",
+      "name": "持久记忆系统",
+      "category": "自我改进",
+      "install": {
+        "type": "git",
+        "repo": "https://github.com/ChinarG/persistent-memory.git",
+        "path": "~/.openclaw/skills/persistent-memory",
+        "command": "cd ~/.openclaw/skills && git clone https://github.com/ChinarG/persistent-memory.git && bash persistent-memory/scripts/init.sh",
+        "auto_setup": true
+      },
+      "config": {
+        "env_vars": [],
+        "files": [
+          {
+            "path": "~/.openclaw/workspace/memory/",
+            "type": "directory",
+            "auto_create": true
+          },
+          {
+            "path": "~/.openclaw/workspace/MEMORY.md",
+            "type": "file",
+            "auto_create": true
+          }
+        ],
+        "cron": {
+          "schedule": "0 23 * * *",
+          "command": "bash ~/.openclaw/skills/persistent-memory/scripts/save-now.sh"
+        }
+      },
+      "capabilities": ["daily_memory", "long_term_memory", "error_learning"],
+      "dependencies": [],
+      "multi_device_sync": true
+    },
+    {
+      "id": "claude-code-router",
+      "name": "Claude Code Router",
+      "category": "工具集成",
+      "install": {
+        "type": "npm",
+        "package": "@musistudio/claude-code-router",
+        "command": "npm install -g @musistudio/claude-code-router",
+        "auto_setup": false
+      },
+      "config": {
+        "env_vars": [
+          {
+            "name": "KIMI_API_KEY",
+            "required": true,
+            "get_url": "https://platform.moonshot.cn",
+            "description": "Moonshot/Kimi API Key"
+          }
+        ],
+        "files": [
+          {
+            "path": "~/.claude-code-router/config.json",
+            "template": {
+              "providers": {
+                "kimi": {
+                  "api_base_url": "https://api.moonshot.cn/v1/chat/completions",
+                  "api_key": "${KIMI_API_KEY}"
+                }
+              }
+            }
+          }
+        ],
+        "systemd": {
+          "service": "claude-code-router"
+        }
+      },
+      "capabilities": ["api_proxy", "model_routing"],
+      "dependencies": ["claude-code"],
+      "multi_device_sync": false
+    },
+    {
+      "id": "multi-search-engine",
+      "name": "Multi Search Engine",
+      "category": "工具集成",
+      "install": {
+        "type": "manual",
+        "path": "~/.openclaw/skills/multi-search-engine",
+        "command": "cd ~/.openclaw/skills && unzip multi-search-engine.zip",
+        "auto_setup": false
+      },
+      "config": {
+        "env_vars": [],
+        "files": [],
+        "note": "无需API Key"
+      },
+      "capabilities": ["multi_engine_search", "web_search"],
+      "dependencies": [],
+      "multi_device_sync": false
+    },
+    {
+      "id": "evomap",
+      "name": "EvoMap",
+      "category": "EvoMap 生态",
+      "install": {
+        "type": "git",
+        "repo": "https://github.com/evomap/connector.git",
+        "path": "~/.openclaw/skills/evomap",
+        "command": "cd ~/.openclaw/skills && git clone https://github.com/evomap/connector.git evomap",
+        "auto_setup": false
+      },
+      "config": {
+        "env_vars": [
+          {
+            "name": "EVOMAP_API_KEY",
+            "required": true,
+            "get_url": "https://evomap.ai",
+            "description": "EvoMap API Key"
+          }
+        ],
+        "files": []
+      },
+      "capabilities": ["skill_publish", "skill_fetch", "collaboration"],
+      "dependencies": [],
+      "multi_device_sync": true
+    }
+  ]
+}

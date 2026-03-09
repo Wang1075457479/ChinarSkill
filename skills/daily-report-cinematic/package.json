@@ -1,0 +1,26 @@
+{
+  "name": "daily-report-cinematic",
+  "version": "1.0.0",
+  "description": "影视级全景动态日报生成器 - Ultra Premium Cinematic Edition (Pure CSS Zero-JS)",
+  "main": "scripts/generator.js",
+  "scripts": {
+    "generate": "node scripts/generator.js",
+    "test": "echo 'Run: npm install && node scripts/generator.js'"
+  },
+  "keywords": [
+    "daily-report",
+    "feishu",
+    "video",
+    "cinematic",
+    "automation",
+    "pure-css",
+    "zero-js"
+  ],
+  "author": "KimiClaw",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "form-data": "^4.0.0",
+    "playwright": "^1.40.0"
+  }
+}

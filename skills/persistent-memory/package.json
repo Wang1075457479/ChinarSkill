@@ -1,0 +1,23 @@
+{
+  "name": "persistent-memory",
+  "version": "1.0.0",
+  "description": "让 OpenClaw 像人类一样拥有长期记忆能力",
+  "main": "SKILL.md",
+  "scripts": {
+    "init": "bash scripts/init.sh",
+    "save": "bash scripts/save-now.sh"
+  },
+  "keywords": [
+    "memory",
+    "persistent",
+    "long-term",
+    "context",
+    "continuity"
+  ],
+  "author": "KimiClaw",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ChinarG/persistent-memory"
+  }
+}
