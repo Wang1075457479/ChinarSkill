@@ -1,0 +1,10 @@
+{
+  "trello": {
+    "apiKey": "your_api_key_here",
+    "token": "your_token_here",
+    "boardId": "your_board_id_here",
+    "defaultList": "Not Start",
+    "feishuAppId": "your_feishu_app_id_here",
+    "feishuAppSecret": "your_feishu_app_secret_here"
+  }
+}
