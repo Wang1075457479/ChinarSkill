@@ -2,16 +2,32 @@
 
 ## 快速开始
 
-### 1. 配置环境变量
+### 1. 配置文件（推荐）
 
-在使用前，需要设置以下环境变量：
+1. 复制 `references/config.example.json` 为 `references/config.json`
+2. 填写你的Trello配置信息：
+```json
+{
+  "trello": {
+    "apiKey": "你的API Key",
+    "token": "你的Token",
+    "boardId": "目标看板ID",
+    "defaultList": "默认列表名称，例如：Not Start"
+  }
+}
+```
 
+### 2. 环境变量方式（可选）
+
+也可以通过环境变量配置：
 ```powershell
 # Windows PowerShell
-$env:TRELLO_API_KEY = "YOUR_TRELLO_API_KEY"
-$env:TRELLO_TOKEN = "YOUR_TRELLO_TOKEN"
-$env:TRELLO_BOARD_ID = "YOUR_TRELLO_BOARD_ID"
+$env:TRELLO_API_KEY = "你的API Key"
+$env:TRELLO_TOKEN = "你的Token"
+$env:TRELLO_BOARD_ID = "目标看板ID"
 ```
+
+> ⚠️ **安全提示**：`references/config.json` 已加入 `.gitignore`，不会被提交到Git仓库，避免敏感信息泄露。
 
 ### 2. 使用方式
 
