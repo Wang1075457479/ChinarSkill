@@ -29,6 +29,12 @@ class TrelloTaskCreator:
         self.board_id = os.getenv("TRELLO_BOARD_ID")
         self.default_list = "Not Start"
         
+        # 默认加载references/config.json
+        if not config_path:
+            default_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../references/config.json")
+            if os.path.exists(default_config):
+                config_path = default_config
+        
         if config_path and os.path.exists(config_path):
             self._load_config(config_path)
         

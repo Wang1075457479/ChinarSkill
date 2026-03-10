@@ -1,6 +1,9 @@
 # 配置文件（包含敏感信息）
 references/config.json
 
+# 依赖文件夹
+node_modules/
+
 # 日志文件
 *.log
 

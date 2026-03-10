@@ -85,11 +85,40 @@ $env:TRELLO_BOARD_ID = "目标看板ID"
 trello-task-creator/
 ├── SKILL.md                    # Skill核心文档
 ├── README.md                   # 本文件
+├── index.js                    # Node.js主入口（推荐使用）
+├── package.json                # NPM配置
+├── bin/
+│   └── trello-task.js          # 命令行工具
 ├── scripts/
-│   ├── trello_task_creator.py  # Python脚本
+│   ├── trello_task_creator.py  # Python版本脚本
+│   ├── trello_auto_organizer.py # 自动整理脚本
 │   └── task_template.json      # 任务数据模板
 └── references/
     ├── api.md                  # API文档
     ├── config.example.json     # 配置文件示例
+    ├── config.json             # 实际配置文件（已忽略）
     └── examples.md             # 更多示例
 ```
+
+## 命令行使用
+
+安装依赖后可以直接使用命令行工具：
+
+```bash
+# 创建任务
+trello-task "给王晨阳创建一个用户登录模块开发任务"
+
+# 自动整理所有卡片
+trello-task --organize
+
+# 测试功能
+trello-task --test
+
+# 查看帮助
+trello-task --help
+```
+
+## 版本说明
+
+- **Node.js版本（推荐）**：`index.js` - 支持OpenClaw Skill调用，性能更好，功能更完善
+- **Python版本**：`scripts/trello_task_creator.py` - 保留原有功能，兼容旧版本
