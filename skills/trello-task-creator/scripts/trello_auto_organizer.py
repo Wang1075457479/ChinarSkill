@@ -30,7 +30,7 @@ class TrelloAutoOrganizer:
         self.modify_records = self._load_records()
         
         # 分类枚举
-        self.categories = ['开发', '优化', '安全', '规则', '设计', '测试', '文档', '重构']
+        self.categories = ['开发', '优化', '安全', '规则', '设计', '测试', '文档', '重构', 'BUG']
         # 无意义词过滤
         self.meaningless = {'大小', '方式', '分类', '类型', '备注', '说明', '测试', '状态', '完成', '未开始'}
         
@@ -101,36 +101,81 @@ class TrelloAutoOrganizer:
             return []
     
     def normalize_title(self, title):
-        """标准化标题格式：【分类】-任务名（≤50字，完整显示）"""
-        # 检查是否已经符合格式
+        """标准化标题格式：【分类】-任务名（≤30字，精炼显示）"""
+        # 首先检查是否已经符合规范格式
         match = re.match(r'【(.+?)】-(.+)', title)
         if match:
-            category = match.group(1)
-            task_name = match.group(2)
-            # 校验分类是否合法
-            if category in self.categories:
-                # 校验长度
-                if len(title) <= 50:
-                    return title, None  # 不需要修改
-                else:
-                    # 截断任务名，保留完整信息
-                    short_name = task_name[:47 - len(category)] + "…"
-                    return f"【{category}】-{short_name}", "标题过长已截断（≤50字）"
+            existing_category = match.group(1)
+            existing_task = match.group(2)
+            # 如果分类合法且长度符合要求，直接返回不修改
+            if existing_category in self.categories and len(title) <= 30:
+                return title, None
+            # 否则提取任务内容，重新处理
+            title = existing_task.strip()
         
-        # 自动识别分类
+        # 自动识别分类（优先级顺序）
         category = '设计'  # 默认分类
-        for cat in self.categories:
-            if cat in title:
-                category = cat
-                # 移除标题中的分类词
-                title = title.replace(cat, '').strip()
-                break
+        lower_title = title.lower()
         
-        # 生成标准化标题，保留完整内容
-        task_name = title[:47] + "…" if len(title) > 47 else title
+        # BUG类优先级最高
+        if 'bug' in lower_title or '故障' in lower_title or '异常' in lower_title or '错误' in lower_title or '崩溃' in lower_title:
+            category = 'BUG'
+        # 开发类
+        elif '开发' in lower_title or '实现' in lower_title or '功能' in lower_title or '新增' in lower_title or '搭建' in lower_title:
+            category = '开发'
+        # 优化类
+        elif '优化' in lower_title or '性能' in lower_title or '提升' in lower_title or '改进' in lower_title or '修复' in lower_title:
+            category = '优化'
+        # 测试类
+        elif '测试' in lower_title or '验证' in lower_title or '联调' in lower_title or '回归' in lower_title:
+            category = '测试'
+        # 文档类
+        elif '文档' in lower_title or '编写' in lower_title or '总结' in lower_title or '说明' in lower_title:
+            category = '文档'
+        # 设计类
+        elif '设计' in lower_title or 'ui' in lower_title or '原型' in lower_title or '效果图' in lower_title:
+            category = '设计'
+        # 安全类
+        elif '安全' in lower_title or '权限' in lower_title or '漏洞' in lower_title:
+            category = '安全'
+        # 规则类
+        elif '规则' in lower_title or '规范' in lower_title or '标准' in lower_title:
+            category = '规则'
+        # 重构类
+        elif '重构' in lower_title or '重写' in lower_title or '架构' in lower_title:
+            category = '重构'
+        
+        # 清理标题中的冗余内容
+        # 移除分类词
+        for cat in self.categories:
+            title = title.replace(cat, '').replace(cat.lower(), '').strip()
+        # 移除bug相关词汇
+        title = re.sub(r'bug|BUG|故障|异常|错误|崩溃', '', title, flags=re.IGNORECASE).strip()
+        # 移除开头冗余词
+        title = re.sub(r'^(这是一个|新的|问题|任务|关于|有关)', '', title).strip()
+        # 移除末尾冗余词
+        title = re.sub(r'(的问题|的bug|的任务|的功能)$', '', title).strip()
+        # 清理多余的标点
+        title = re.sub(r'[,，。；;！!？?\s]+$', '', title).strip()
+        
+        # 控制长度，≤30字（包含符号）
+        # 【分类】- 占的字符数：2（括号） + len(category) + 1（横杠） = len(category) + 3
+        # 注意：中文每个字占2个字符？不，Python中字符串长度是按字符数计算，不是字节
+        available_length = 30 - (len(category) + 3)
+        if len(title) > available_length:
+            # 优先截断后半部分，保留核心信息
+            task_name = title[:available_length - 1] + "…"  # 多减1，给省略号留位置
+        else:
+            task_name = title
+        
+        # 生成新标题
         new_title = f"【{category}】-{task_name}"
         
-        return new_title, f"自动识别分类为{category}，标题已标准化"
+        # 检查是否需要修改
+        if len(new_title) <= 30 and new_title != title:
+            return new_title, f"自动识别分类为{category}，标题已标准化精炼"
+        else:
+            return new_title, None
     
     def generate_checklist(self, card):
         """根据卡片描述生成清单（如果没有清单）"""
