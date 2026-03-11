@@ -155,12 +155,15 @@ class TrelloAutoOrganizer:
         title = re.sub(r'^(这是一个|新的|问题|任务|关于|有关)', '', title).strip()
         # 移除末尾冗余词
         title = re.sub(r'(的问题|的bug|的任务|的功能)$', '', title).strip()
-        # 清理多余的标点
-        title = re.sub(r'[,，。；;！!？?\s]+$', '', title).strip()
+        # 清理多余的标点和数字前缀、符号
+        title = re.sub(r'^[0-9一二三四五六七八九十、. \-\[\]【】]+', '', title).strip()
+        title = re.sub(r'[,，。；;！!？?\s\[\]【】]+$', '', title).strip()
+        # 清理连续的短横线和多余符号
+        title = re.sub(r'[-_]+', '-', title).strip()
+        title = re.sub(r'【.*?】', '', title).strip()
+        title = re.sub(r'\[.*?\]', '', title).strip()
         
         # 控制长度，≤30字（包含符号）
-        # 【分类】- 占的字符数：2（括号） + len(category) + 1（横杠） = len(category) + 3
-        # 注意：中文每个字占2个字符？不，Python中字符串长度是按字符数计算，不是字节
         available_length = 30 - (len(category) + 3)
         if len(title) > available_length:
             # 优先截断后半部分，保留核心信息
@@ -177,15 +180,61 @@ class TrelloAutoOrganizer:
         else:
             return new_title, None
     
+    def normalize_checklist(self, checklist_items):
+        """标准化清单格式：统一使用 1、2、3 前缀，避免重复，过滤无效项"""
+        normalized = []
+        seen = set()
+        
+        for item in checklist_items:
+            if not item or len(item.strip()) < 2:
+                continue
+            
+            # 清理原有的序号前缀
+            clean_item = re.sub(r'^[0-9一二三四五六七八九十、. \-]+', '', item.strip())
+            clean_item = re.sub(r'^第[0-9一二三四五六七八九十]+[步骤条项]', '', clean_item).strip()
+            # 清理多余的数字和符号
+            clean_item = re.sub(r'\d+[-、. ]+', '', clean_item).strip()
+            
+            if not clean_item or clean_item in seen:
+                continue
+            
+            seen.add(clean_item)
+            normalized.append(clean_item)
+            
+            # 最多50条
+            if len(normalized) >= 50:
+                break
+        
+        # 如果不足3条，自动补充
+        while len(normalized) < 3:
+            normalized.append(f"完成相关工作第{len(normalized)+1}步")
+        
+        return normalized
+    
     def generate_checklist(self, card):
         """根据卡片描述生成清单（如果没有清单）"""
         # 检查是否已有清单
         if card.get('checklists', []):
-            return None, "已有清单，无需生成"
+            # 标准化现有清单
+            existing_items = []
+            for checklist in card.get('checklists', []):
+                for item in checklist.get('checkItems', []):
+                    existing_items.append(item.get('name', ''))
+            
+            normalized = self.normalize_checklist(existing_items)
+            if normalized != existing_items:
+                return normalized, f"现有清单已标准化，共{len(normalized)}条"
+            return None, "已有清单且符合规范，无需修改"
         
         desc = card.get('desc', '')
         if not desc:
-            return None, "无描述内容，无法生成清单"
+            # 无描述时生成默认3条清单
+            default_items = [
+                "需求分析和确认",
+                "方案设计和开发实现",
+                "测试验证和上线交付"
+            ]
+            return default_items, "无描述内容，自动生成3条默认清单项"
         
         # 提取描述中的任务点
         checklist_items = []
@@ -210,10 +259,19 @@ class TrelloAutoOrganizer:
                     line = f"完成{line}相关工作"
                 checklist_items.append(line)
         
-        if checklist_items:
-            return checklist_items, f"自动生成 {len(checklist_items)} 条清单项"
+        # 标准化清单
+        normalized = self.normalize_checklist(checklist_items)
+        
+        if normalized:
+            return normalized, f"自动生成 {len(normalized)} 条清单项"
         else:
-            return None, "无法提取有效清单项"
+            # 兜底默认清单
+            default_items = [
+                "需求分析和确认",
+                "方案设计和开发实现",
+                "测试验证和上线交付"
+            ]
+            return default_items, "无法提取有效清单项，自动生成3条默认清单项"
     
     def update_card(self, card_id, new_title=None, new_desc=None, keep_original_desc=True):
         """更新卡片信息，保留原有描述、附件、关联等所有信息"""
@@ -239,7 +297,10 @@ class TrelloAutoOrganizer:
             return False
     
     def add_checklist_to_card(self, card_id, items):
-        """给卡片添加清单"""
+        """给卡片添加清单，标准化格式"""
+        # 先标准化清单
+        normalized_items = self.normalize_checklist(items)
+        
         url = "https://api.trello.com/1/checklists"
         params = {
             'key': self.api_key,
@@ -253,7 +314,7 @@ class TrelloAutoOrganizer:
             self._rate_limit()
             if response.status_code == 200:
                 checklist_id = response.json()['id']
-                for i, item in enumerate(items, 1):
+                for i, item in enumerate(normalized_items, 1):
                     item_url = f"https://api.trello.com/1/checklists/{checklist_id}/checkItems"
                     item_params = {
                         'key': self.api_key,

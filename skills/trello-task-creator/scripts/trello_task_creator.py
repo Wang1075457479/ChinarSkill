@@ -6,6 +6,7 @@ Trello任务创建脚本
 2. 自动计算截止日期（当月最后一个工作日）
 3. 成员匹配
 4. 创建Trello卡片
+5. 支持XMind文件解析
 """
 
 import requests
@@ -13,6 +14,8 @@ import json
 import os
 from datetime import datetime, timedelta
 import calendar
+import re
+from xmindparser import xmind_to_dict
 
 
 class TrelloTaskCreator:
@@ -163,6 +166,176 @@ class TrelloTaskCreator:
         
         return checklist
     
+    def normalize_title(self, title):
+        """标准化标题格式：【分类】-任务名（≤30字，精炼显示）"""
+        # 分类枚举
+        categories = ['开发', '优化', '安全', '规则', '设计', '测试', '文档', '重构', 'BUG']
+        
+        # 首先检查是否已经符合规范格式
+        match = re.match(r'【(.+?)】-(.+)', title)
+        if match:
+            existing_category = match.group(1)
+            existing_task = match.group(2)
+            # 如果分类合法且长度符合要求，直接返回
+            if existing_category in categories and len(title) <= 30:
+                return title
+            # 否则提取任务内容，重新处理
+            title = existing_task.strip()
+        
+        # 自动识别分类（优先级顺序）
+        category = '设计'  # 默认分类
+        lower_title = title.lower()
+        
+        # BUG类优先级最高
+        if 'bug' in lower_title or '故障' in lower_title or '异常' in lower_title or '错误' in lower_title or '崩溃' in lower_title:
+            category = 'BUG'
+        # 开发类
+        elif '开发' in lower_title or '实现' in lower_title or '功能' in lower_title or '新增' in lower_title or '搭建' in lower_title:
+            category = '开发'
+        # 优化类
+        elif '优化' in lower_title or '性能' in lower_title or '提升' in lower_title or '改进' in lower_title or '修复' in lower_title:
+            category = '优化'
+        # 测试类
+        elif '测试' in lower_title or '验证' in lower_title or '联调' in lower_title or '回归' in lower_title:
+            category = '测试'
+        # 文档类
+        elif '文档' in lower_title or '编写' in lower_title or '总结' in lower_title or '说明' in lower_title:
+            category = '文档'
+        # 设计类
+        elif '设计' in lower_title or 'ui' in lower_title or '原型' in lower_title or '效果图' in lower_title:
+            category = '设计'
+        # 安全类
+        elif '安全' in lower_title or '权限' in lower_title or '漏洞' in lower_title:
+            category = '安全'
+        # 规则类
+        elif '规则' in lower_title or '规范' in lower_title or '标准' in lower_title:
+            category = '规则'
+        # 重构类
+        elif '重构' in lower_title or '重写' in lower_title or '架构' in lower_title:
+            category = '重构'
+        
+        # 清理标题中的冗余内容
+        # 移除分类词
+        for cat in categories:
+            title = title.replace(cat, '').replace(cat.lower(), '').strip()
+        # 移除bug相关词汇
+        title = re.sub(r'bug|BUG|故障|异常|错误|崩溃', '', title, flags=re.IGNORECASE).strip()
+        # 移除开头冗余词
+        title = re.sub(r'^(这是一个|新的|问题|任务|关于|有关)', '', title).strip()
+        # 移除末尾冗余词
+        title = re.sub(r'(的问题|的bug|的任务|的功能)$', '', title).strip()
+        # 清理多余的标点和数字前缀
+        title = re.sub(r'^[0-9一二三四五六七八九十、. \-]+', '', title).strip()
+        title = re.sub(r'[,，。；;！!？?\s]+$', '', title).strip()
+        # 清理多余的中括号和短横线
+        title = re.sub(r'[【】\[\]-]+', '', title).strip()
+        
+        # 控制长度，≤30字（包含符号）
+        available_length = 30 - (len(category) + 3)
+        if len(title) > available_length:
+            # 优先截断后半部分，保留核心信息
+            task_name = title[:available_length - 1] + "…"  # 多减1，给省略号留位置
+        else:
+            task_name = title
+        
+        # 生成新标题
+        new_title = f"【{category}】-{task_name}"
+        
+        return new_title
+    
+    def normalize_checklist(self, checklist_items):
+        """标准化清单格式：统一使用 1、2、3 前缀，避免重复，过滤无效项"""
+        normalized = []
+        seen = set()
+        
+        for item in checklist_items:
+            if not item or len(item.strip()) < 2:
+                continue
+            
+            # 清理原有的序号前缀
+            clean_item = re.sub(r'^[0-9一二三四五六七八九十、. \-]+', '', item.strip())
+            clean_item = re.sub(r'^第[0-9一二三四五六七八九十]+[步骤条项]', '', clean_item).strip()
+            
+            if not clean_item or clean_item in seen:
+                continue
+            
+            seen.add(clean_item)
+            normalized.append(clean_item)
+            
+            # 最多50条
+            if len(normalized) >= 50:
+                break
+        
+        # 如果不足3条，自动补充
+        while len(normalized) < 3:
+            normalized.append(f"完成相关工作第{len(normalized)+1}步")
+        
+        # 添加标准序号前缀
+        result = [f"{i+1}、{item}" for i, item in enumerate(normalized)]
+        
+        return result
+    
+    def parse_xmind(self, xmind_path):
+        """解析XMind文件，返回任务数据列表（每个画布一个任务）"""
+        if not os.path.exists(xmind_path):
+            raise FileNotFoundError(f"XMind文件不存在: {xmind_path}")
+        
+        # 解析XMind
+        xmind_data = xmind_to_dict(xmind_path)
+        tasks = []
+        
+        # 每个画布对应一个任务
+        for sheet in xmind_data:
+            sheet_title = sheet.get('title', '未命名任务')
+            
+            # 提取根节点的子节点作为清单项
+            root_topic = sheet.get('topic', {})
+            checklist_items = []
+            all_nodes = []
+            
+            # 递归解析子节点
+            def parse_topic(topic, depth=0):
+                title = topic.get('title', '').strip()
+                if title and depth > 0:  # 根节点是画布标题，不加入清单
+                    all_nodes.append(title)
+                    # 只提取一级和二级节点作为清单项，避免太多
+                    if depth <= 2:
+                        checklist_items.append(title)
+                
+                # 处理子节点
+                for child in topic.get('topics', []):
+                    parse_topic(child, depth + 1)
+            
+            parse_topic(root_topic)
+            
+            # 生成精炼描述（≤300字）
+            description = f"【{sheet_title}】\n"
+            description += f"核心功能：{len(all_nodes)}个功能点，包含"
+            # 提取前5个核心节点作为描述
+            core_features = [node for node in all_nodes[:5] if len(node) > 2]
+            description += "、".join(core_features)
+            if len(all_nodes) > 5:
+                description += f"等{len(all_nodes)}项内容\n"
+            else:
+                description += "\n"
+            description += "主要目标：完成系统设计、开发和落地实施"
+            
+            # 限制描述长度≤300字
+            if len(description) > 300:
+                description = description[:297] + "…"
+            
+            # 生成任务数据
+            task_data = {
+                "title": self.normalize_title(sheet_title),
+                "description": description,
+                "checklist": self.normalize_checklist(checklist_items),
+                "assignee": None
+            }
+            
+            tasks.append(task_data)
+        
+        return tasks
+    
     def create_task(self, task_data):
         """
         完整的任务创建流程
@@ -188,6 +361,12 @@ class TrelloTaskCreator:
         if not list_id:
             raise ValueError(f"找不到列表: {self.default_list}")
         
+        # 标准化标题
+        normalized_title = self.normalize_title(task_data["title"])
+        
+        # 标准化清单
+        normalized_checklist = self.normalize_checklist(task_data.get("checklist", []))
+        
         # 匹配成员
         member_id = None
         if task_data.get("assignee"):
@@ -198,7 +377,7 @@ class TrelloTaskCreator:
         
         # 创建卡片
         card = self.create_card(
-            name=task_data["title"],
+            name=normalized_title,
             desc=task_data["description"],
             id_list=list_id,
             id_members=[member_id] if member_id else None,
@@ -206,10 +385,23 @@ class TrelloTaskCreator:
         )
         
         # 添加清单
-        if task_data.get("checklist"):
-            self.add_checklist(card["id"], "任务清单", task_data["checklist"])
+        if normalized_checklist:
+            self.add_checklist(card["id"], "任务清单", normalized_checklist)
         
         return card
+    
+    def create_task_from_xmind(self, xmind_path, assignee=None):
+        """从XMind文件创建任务（每个画布一个任务卡片）"""
+        tasks = self.parse_xmind(xmind_path)
+        created_cards = []
+        
+        for task_data in tasks:
+            if assignee:
+                task_data["assignee"] = assignee
+            card = self.create_task(task_data)
+            created_cards.append(card)
+        
+        return created_cards
 
 
 def main():
