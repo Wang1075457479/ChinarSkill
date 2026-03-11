@@ -74,7 +74,13 @@ class TrelloAutoOrganizer:
     
     def _get_card_hash(self, card):
         """计算卡片内容哈希，用于检测变更"""
-        content = f"{card['name']}{card['desc']}{len(card.get('checklists', []))}"
+        # 包含标题、描述、清单数量和所有清单项内容，确保内容变更时能检测到
+        checklist_content = ""
+        for checklist in card.get('checklists', []):
+            for item in checklist.get('checkItems', []):
+                checklist_content += item.get('name', '')
+        
+        content = f"{card['name']}{card['desc']}{len(card.get('checklists', []))}{checklist_content}"
         return hash(content)
     
     def get_all_cards(self):
@@ -212,18 +218,28 @@ class TrelloAutoOrganizer:
         return normalized
     
     def generate_checklist(self, card):
-        """根据卡片描述生成清单（如果没有清单）"""
+        """根据卡片描述生成清单，已有清单则标准化"""
         # 检查是否已有清单
         if card.get('checklists', []):
-            # 标准化现有清单
+            # 提取所有现有清单项
             existing_items = []
             for checklist in card.get('checklists', []):
                 for item in checklist.get('checkItems', []):
-                    existing_items.append(item.get('name', ''))
+                    item_name = item.get('name', '')
+                    # 清理原有序号
+                    clean_item = re.sub(r'^[0-9一二三四五六七八九十、. \-]+', '', item_name.strip())
+                    if clean_item:
+                        existing_items.append(clean_item)
             
+            # 标准化
             normalized = self.normalize_checklist(existing_items)
-            if normalized != existing_items:
-                return normalized, f"现有清单已标准化，共{len(normalized)}条"
+            
+            # 检查是否需要更新
+            original_clean = [re.sub(r'^[0-9一二三四五六七八九十、. \-]+', '', item.strip()) for item in existing_items]
+            normalized_clean = [re.sub(r'^[0-9一二三四五六七八九十、. \-]+', '', item.strip()) for item in normalized]
+            
+            if set(normalized_clean) != set(original_clean) or len(normalized) != len(existing_items):
+                return normalized, f"现有清单已标准化整理，共{len(normalized)}条"
             return None, "已有清单且符合规范，无需修改"
         
         desc = card.get('desc', '')
@@ -296,38 +312,88 @@ class TrelloAutoOrganizer:
             print(f"更新卡片异常：{str(e)}")
             return False
     
+    def update_existing_checklist(self, checklist_id, items):
+        """更新现有清单的内容，保留原有ID"""
+        try:
+            # 先删除现有清单项
+            url = f"https://api.trello.com/1/checklists/{checklist_id}/checkItems"
+            params = {
+                'key': self.api_key,
+                'token': self.token
+            }
+            response = self.session.get(url, params=params, timeout=30)
+            self._rate_limit()
+            
+            if response.status_code == 200:
+                existing_items = response.json()
+                for item in existing_items:
+                    delete_url = f"https://api.trello.com/1/checklists/{checklist_id}/checkItems/{item['id']}"
+                    self.session.delete(delete_url, params=params, timeout=10)
+                    self._rate_limit()
+            
+            # 添加新的标准化清单项
+            for i, item in enumerate(items, 1):
+                item_url = f"https://api.trello.com/1/checklists/{checklist_id}/checkItems"
+                item_params = {
+                    'key': self.api_key,
+                    'token': self.token,
+                    'name': f"{i}、{item[:100]}"
+                }
+                self.session.post(item_url, params=item_params, timeout=10)
+                self._rate_limit()
+            
+            return True
+        except Exception as e:
+            print(f"更新清单异常：{str(e)}")
+            return False
+    
     def add_checklist_to_card(self, card_id, items):
-        """给卡片添加清单，标准化格式"""
+        """给卡片添加/更新清单，避免重复创建"""
         # 先标准化清单
         normalized_items = self.normalize_checklist(items)
         
-        url = "https://api.trello.com/1/checklists"
-        params = {
-            'key': self.api_key,
-            'token': self.token,
-            'idCard': card_id,
-            'name': '执行步骤'
-        }
+        # 检查是否已有清单
+        card_data = self.session.get(
+            f"https://api.trello.com/1/cards/{card_id}/checklists",
+            params={'key': self.api_key, 'token': self.token},
+            timeout=30
+        ).json()
+        self._rate_limit()
         
-        try:
-            response = self.session.post(url, params=params, timeout=30)
-            self._rate_limit()
-            if response.status_code == 200:
-                checklist_id = response.json()['id']
-                for i, item in enumerate(normalized_items, 1):
-                    item_url = f"https://api.trello.com/1/checklists/{checklist_id}/checkItems"
-                    item_params = {
-                        'key': self.api_key,
-                        'token': self.token,
-                        'name': f"{i}、{item[:100]}"
-                    }
-                    self.session.post(item_url, params=item_params, timeout=10)
-                    self._rate_limit()
-                return True
-            return False
-        except Exception as e:
-            print(f"添加清单异常：{str(e)}")
-            return False
+        if card_data:
+            # 已有清单，更新第一个清单的内容，不创建新的
+            existing_checklist_id = card_data[0]['id']
+            print(f"已有清单，更新现有清单: {existing_checklist_id}")
+            return self.update_existing_checklist(existing_checklist_id, normalized_items)
+        else:
+            # 没有清单，创建新的
+            url = "https://api.trello.com/1/checklists"
+            params = {
+                'key': self.api_key,
+                'token': self.token,
+                'idCard': card_id,
+                'name': '执行步骤'
+            }
+            
+            try:
+                response = self.session.post(url, params=params, timeout=30)
+                self._rate_limit()
+                if response.status_code == 200:
+                    checklist_id = response.json()['id']
+                    for i, item in enumerate(normalized_items, 1):
+                        item_url = f"https://api.trello.com/1/checklists/{checklist_id}/checkItems"
+                        item_params = {
+                            'key': self.api_key,
+                            'token': self.token,
+                            'name': f"{i}、{item[:100]}"
+                        }
+                        self.session.post(item_url, params=item_params, timeout=10)
+                        self._rate_limit()
+                    return True
+                return False
+            except Exception as e:
+                print(f"添加清单异常：{str(e)}")
+                return False
     
     def get_feishu_token(self):
         """获取飞书访问令牌"""
